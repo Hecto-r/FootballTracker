@@ -1,3 +1,12 @@
+######## Webcam Object Detection Using Tensorflow-trained Classifier #######################
+#
+# Author: Hector Cabrera
+# Date: 11/25/2023
+# Description: 
+# This program uses a TensorFlow Lite model to perform object detection on a live webcam
+# feed. It draws boxes and scores around the objects of interest in each frame from the
+# webcam. To improve FPS, the webcam object runs in a separate thread from the main program.
+
 import cv2
 import time
 from threading import Thread
@@ -52,15 +61,8 @@ class VideoStream:
 
 model='Models/edgetpu.tflite'
 
-pos=(20,60)
-font=cv2.FONT_HERSHEY_SIMPLEX
-height=1.5
-weight=3
-myColor=(255,0,0)
-fps=0
-
 base_option=core.BaseOptions(file_name=model,use_coral=True, num_threads=4)
-detection_options=processor.DetectionOptions(max_results=8, score_threshold=.3)
+detection_options=processor.DetectionOptions(max_results=8, score_threshold=.5)
 options=vision.ObjectDetectorOptions(base_options=base_option, detection_options=detection_options)
 detector=vision.ObjectDetector.create_from_options(options)
 
@@ -104,3 +106,4 @@ while True:
         break
     
 cv2.destroyAllWindows()
+videostream.stop()
