@@ -1,4 +1,4 @@
-######## Webcam Object Detection Using Tensorflow-trained Classifier #######################
+######## Webcam Object Detection Using Tensorflow #######################
 #
 # Author: Hector Cabrera
 # Date: 11/25/2023
@@ -15,6 +15,7 @@ from picamera2 import Picamera2
 from tflite_support.task import core
 from tflite_support.task import processor
 from tflite_support.task import vision
+#from tracker import Tracker
 import utils
 
 class VideoStream:
@@ -88,8 +89,18 @@ while True:
     frame_resized = cv2.resize(frame_rgb, (640,480))
     
     imTensor=vision.TensorImage.create_from_array(frame_resized)
-    detections=detector.detect(imTensor)
-    image=utils.visualize(frame, detections)
+    results=detector.detect(imTensor)
+    
+    for result in results.detections:
+        detections = []
+        x1 = int(result.bounding_box.origin_x)
+        x2 = int(result.bounding_box.width)
+        y1 = int(result.bounding_box.origin_y)
+        y2 = int(result.bounding_box.height)
+        class_id = int(result.categories[0].index)
+        score = int(result.categories[0].score)
+        if score > .5:
+            detections.append([x1, y1, x2, y2, score])
     
     # Draw framerate in corner of frame
     cv2.putText(frame,'FPS: {0:.2f}'.format(frame_rate_calc),(30,50),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,0),2,cv2.LINE_AA)
