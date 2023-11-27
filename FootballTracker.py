@@ -15,7 +15,7 @@ from picamera2 import Picamera2
 from tflite_support.task import core
 from tflite_support.task import processor
 from tflite_support.task import vision
-#from tracker import Tracker
+from tracker import Tracker
 import utils
 
 class VideoStream:
@@ -90,6 +90,7 @@ while True:
     
     imTensor=vision.TensorImage.create_from_array(frame_resized)
     results=detector.detect(imTensor)
+    #image=utils.visualize(frame, results) # Default BBox
     
     for result in results.detections:
         detections = []
