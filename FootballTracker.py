@@ -17,7 +17,10 @@ from tflite_support.task import core
 from tflite_support.task import processor
 from tflite_support.task import vision
 from tracker import Tracker
+from ocsort import ocsort
+
 import utils
+import numpy as np
 
 class VideoStream:
     """Camera object that controls video streaming from the Picamera"""
@@ -73,8 +76,11 @@ frame_rate_calc = 1
 freq = cv2.getTickFrequency()
 
 # Initialize deepSort
-tracker = Tracker()
+#tracker = Tracker()
 colors = [(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)) for j in range(10)]
+
+# Initialize OCSort
+tracker = ocsort.OCSort(det_thresh=0.30, max_age=10, min_hits=5)
 
 # Initialize video stream
 videostream = VideoStream(resolution=(640,480),framerate=30).start()
@@ -109,15 +115,31 @@ while True:
             if score > .5:
                 detections.append([x1, y1, x2, y2, score])
         
-        tracker.update(frame, detections)
-        
-        for track in tracker.tracks:
-            bbox = track.bbox
-            x1, y1, x2, y2 = bbox
-            track_id = track.track_id
+        tracker.update(detections, (640,480), (640,480))
+        for track in tracker.trackers:
+          track_id = track.id
+          hits = track.hits
+          color = colors[track_id % len(colors)]
+          x1,y1,x2,y2 = np.round(track.get_state()).astype(int).squeeze()
 
-            cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (colors[track_id % len(colors)]), 3)
-            cv2.putText(frame,str(track_id),(int(x1), int(y1)),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,0),2)
+          cv2.rectangle(frame, (x1,y1),(x2,y2), color, 2)
+          cv2.putText(frame, 
+                  f"{track_id}-{hits}", 
+                  (x1+10,y1-5), 
+                  cv2.FONT_HERSHEY_SIMPLEX, 
+                  0.5,
+                  color, 
+                  1,
+                  cv2.LINE_AA)
+          
+        #tracker.update(frame, detections)
+#         for track in tracker.tracks:
+#             bbox = track.bbox
+#             x1, y1, x2, y2 = bbox
+#             track_id = track.track_id
+# 
+#             cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (colors[track_id % len(colors)]), 3)
+#             cv2.putText(frame,str(track_id),(int(x1), int(y1)),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,0),2)
     
     # Draw framerate in corner of frame
     cv2.putText(frame,'FPS: {0:.2f}'.format(frame_rate_calc),(30,50),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,0),2,cv2.LINE_AA)
