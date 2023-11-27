@@ -9,6 +9,7 @@
 
 import cv2
 import time
+import random
 from threading import Thread
 from picamera2 import Picamera2
 
@@ -71,6 +72,10 @@ detector=vision.ObjectDetector.create_from_options(options)
 frame_rate_calc = 1
 freq = cv2.getTickFrequency()
 
+# Initialize deepSort
+tracker = Tracker()
+colors = [(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)) for j in range(10)]
+
 # Initialize video stream
 videostream = VideoStream(resolution=(640,480),framerate=30).start()
 time.sleep(1)
@@ -95,13 +100,23 @@ while True:
     for result in results.detections:
         detections = []
         x1 = int(result.bounding_box.origin_x)
-        x2 = int(result.bounding_box.width)
+        x2 = int(result.bounding_box.origin_x+result.bounding_box.width)
         y1 = int(result.bounding_box.origin_y)
-        y2 = int(result.bounding_box.height)
+        y2 = int(result.bounding_box.origin_y+result.bounding_box.height)
         class_id = int(result.categories[0].index)
-        score = int(result.categories[0].score)
+        score = result.categories[0].score
         if score > .5:
             detections.append([x1, y1, x2, y2, score])
+        
+        tracker.update(frame, detections)
+        
+        for track in tracker.tracks:
+            bbox = track.bbox
+            x1, y1, x2, y2 = bbox
+            track_id = track.track_id
+
+            cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (colors[track_id % len(colors)]), 3)
+            cv2.putText(frame,str(track_id),(int(x1), int(y1)),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,0),2)
     
     # Draw framerate in corner of frame
     cv2.putText(frame,'FPS: {0:.2f}'.format(frame_rate_calc),(30,50),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,0),2,cv2.LINE_AA)
