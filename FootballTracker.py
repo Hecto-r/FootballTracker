@@ -97,16 +97,17 @@ while True:
     results=detector.detect(imTensor)
     #image=utils.visualize(frame, results) # Default BBox
     
-    for result in results.detections:
+    for detection in range(len(results.detections)):
         detections = []
-        x1 = int(result.bounding_box.origin_x)
-        x2 = int(result.bounding_box.origin_x+result.bounding_box.width)
-        y1 = int(result.bounding_box.origin_y)
-        y2 = int(result.bounding_box.origin_y+result.bounding_box.height)
-        class_id = int(result.categories[0].index)
-        score = result.categories[0].score
-        if score > .5:
-            detections.append([x1, y1, x2, y2, score])
+        for result in results.detections:
+            x1 = int(result.bounding_box.origin_x)
+            x2 = int(result.bounding_box.origin_x+result.bounding_box.width)
+            y1 = int(result.bounding_box.origin_y)
+            y2 = int(result.bounding_box.origin_y+result.bounding_box.height)
+            class_id = int(result.categories[0].index)
+            score = result.categories[0].score
+            if score > .5:
+                detections.append([x1, y1, x2, y2, score])
         
         tracker.update(frame, detections)
         
