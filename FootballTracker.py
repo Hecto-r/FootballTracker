@@ -10,61 +10,16 @@
 import cv2
 import time
 import random
-from threading import Thread
-from picamera2 import Picamera2
-
+import numpy as np
 from tflite_support.task import core
 from tflite_support.task import processor
 from tflite_support.task import vision
-from tracker import Tracker
 from ocsort import ocsort
-
-import utils
-import numpy as np
-
-class VideoStream:
-    """Camera object that controls video streaming from the Picamera"""
-    def __init__(self,resolution=(640,480),framerate=30):
-        # Initialize the PiCamera and the camera image stream
-        self.picam2=Picamera2()
-        self.picam2.preview_configuration.main.size=(resolution[0], resolution[1])
-        self.picam2.preview_configuration.main.format='RGB888'
-        self.picam2.preview_configuration.align()
-        self.picam2.configure("preview")
-        self.picam2.start()
-            
-        # Read first frame from the stream
-        self.frame = self.picam2.capture_array()
-
-	# Variable to control when the camera is stopped
-        self.stopped = False
-
-    def start(self):
-	# Start the thread that reads frames from the video stream
-        Thread(target=self.update,args=()).start()
-        return self
-
-    def update(self):
-        # Keep looping indefinitely until the thread is stopped
-        while True:
-            # If the camera is stopped, stop the thread
-            if self.stopped:
-                # Close camera resources
-                self.picam2.stop()
-                return
-
-            # Otherwise, grab the next frame from the stream
-            self.frame = self.picam2.capture_array()
-
-    def read(self):
-	# Return the most recent frame
-        return self.frame
-
-    def stop(self):
-	# Indicate that the camera and thread should be stopped
-        self.stopped = True
+from Utils import utils
+from Utils.VideoStream import VideoStream
 
 model='Models/edgetpu.tflite'
+mIsTrackEnabled = True
 
 base_option=core.BaseOptions(file_name=model,use_coral=True, num_threads=4)
 detection_options=processor.DetectionOptions(max_results=8, score_threshold=.5)
@@ -75,12 +30,9 @@ detector=vision.ObjectDetector.create_from_options(options)
 frame_rate_calc = 1
 freq = cv2.getTickFrequency()
 
-# Initialize deepSort
-#tracker = Tracker()
-colors = [(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)) for j in range(10)]
-
-# Initialize OCSort
+#Initialize OCSort
 tracker = ocsort.OCSort(det_thresh=0.30, max_age=10, min_hits=5)
+colors = [(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)) for j in range(10)]
 
 # Initialize video stream
 videostream = VideoStream(resolution=(640,480),framerate=30).start()
@@ -113,17 +65,19 @@ while True:
             class_id = int(result.categories[0].index)
             score = result.categories[0].score
             if score > .5:
-                detections.append([x1, y1, x2, y2, score])
-        
-        tracker.update(detections, (640,480), (640,480))
-        for track in tracker.trackers:
-          track_id = track.id
-          hits = track.hits
-          color = colors[track_id % len(colors)]
-          x1,y1,x2,y2 = np.round(track.get_state()).astype(int).squeeze()
+                detections.append([x1, y1, x2, y2, score, class_id])
+                
+        if mIsTrackEnabled and detections:
+            detections = np.array(detections)
+            tracker.update(detections, frame)
+            for track in tracker.trackers:
+                track_id = track.id
+                hits = track.hits
+                color = colors[track_id % len(colors)]
+                x1,y1,x2,y2 = np.round(track.get_state()).astype(int).squeeze()
 
-          cv2.rectangle(frame, (x1,y1),(x2,y2), color, 2)
-          cv2.putText(frame, 
+                cv2.rectangle(frame, (x1,y1),(x2,y2), color, 2)
+                cv2.putText(frame, 
                   f"{track_id}-{hits}", 
                   (x1+10,y1-5), 
                   cv2.FONT_HERSHEY_SIMPLEX, 
@@ -131,15 +85,6 @@ while True:
                   color, 
                   1,
                   cv2.LINE_AA)
-          
-        #tracker.update(frame, detections)
-#         for track in tracker.tracks:
-#             bbox = track.bbox
-#             x1, y1, x2, y2 = bbox
-#             track_id = track.track_id
-# 
-#             cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (colors[track_id % len(colors)]), 3)
-#             cv2.putText(frame,str(track_id),(int(x1), int(y1)),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,0),2)
     
     # Draw framerate in corner of frame
     cv2.putText(frame,'FPS: {0:.2f}'.format(frame_rate_calc),(30,50),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,0),2,cv2.LINE_AA)
