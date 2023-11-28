@@ -22,6 +22,8 @@ from Utils.VideoStream import VideoStream
 
 model='Models/edgetpu.tflite'
 mIsTrackEnabled = False
+mDispW = 640
+mDispH = 480
 # Default Pan/Tilt for the camera in degrees. I have set it up to roughly point at my face location when it starts the code.
 # Camera range is from 0 to 180. Alter the values below to determine the starting point for your pan and tilt.
 cam_pan = 90
@@ -44,7 +46,7 @@ tracker = ocsort.OCSort(det_thresh=0.30, max_age=30, min_hits=2)
 colors = [(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)) for j in range(10)]
 
 # Initialize video stream
-videostream = VideoStream(resolution=(640,480),framerate=30).start()
+videostream = VideoStream(resolution=(mDispW,mDispH),framerate=30).start()
 time.sleep(1)
 tic=0
 while True:
@@ -58,7 +60,7 @@ while True:
     frame = frame1.copy()
     frame = cv2.flip(frame,-1)
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    frame_resized = cv2.resize(frame_rgb, (640,480))
+    frame_resized = cv2.resize(frame_rgb, (mDispW,mDispH))
     
     imTensor=vision.TensorImage.create_from_array(frame_resized)
     results=detector.detect(imTensor)
@@ -79,12 +81,12 @@ while True:
                 y = y1 + ((y2-y1)/2)
 
                 # Correct relative to centre of image
-                turn_x  = float(x - (640/2))
-                turn_y  = float(y - (480/2))
+                turn_x  = float(x - (mDispW/2))
+                turn_y  = float(y - (mDispH/2))
 
                 # Convert to percentage offset
-                turn_x  /= float(640/2)
-                turn_y  /= float(480/2)
+                turn_x  /= float(mDispW/2)
+                turn_y  /= float(mDispH/2)
 
                 # Scale offset to degrees (that 2.5 value below acts like the Proportional factor in PID)
                 turn_x   *= 2.5 # VFOV
