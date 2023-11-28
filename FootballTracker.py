@@ -12,6 +12,7 @@ import time
 import random
 import numpy as np
 import sys
+import os
 import pantilthat
 from tflite_support.task import core
 from tflite_support.task import processor
@@ -20,20 +21,42 @@ from ocsort import ocsort
 from Utils import utils
 from Utils.VideoStream import VideoStream
 
-model='Models/edgetpu.tflite'
-mIsTrackEnabled = False
-mDispW = 640
-mDispH = 480
-# Default Pan/Tilt for the camera in degrees. I have set it up to roughly point at my face location when it starts the code.
-# Camera range is from 0 to 180. Alter the values below to determine the starting point for your pan and tilt.
-cam_pan = 90
-cam_tilt = 60
-# Turn the camera to the Start position (the data that pan() and tilt() functions expect to see are any numbers between -90 to 90 degrees).
-pantilthat.tilt(cam_pan-90)
-pantilthat.pan(cam_tilt-90)
+# Find the full path of this python script
+SCRIPT_PATH = os.path.abspath(__file__)
+# get the path location only (excluding script name)
+SCRIPT_DIR = SCRIPT_PATH[0:SCRIPT_PATH.rfind("/")+1]
+baseFileName = SCRIPT_PATH[SCRIPT_PATH.rfind("/")+1:SCRIPT_PATH.rfind(".")]
+# Read Configuration variables from config.py file
+configFilePath = SCRIPT_DIR + "config.py"
+if not os.path.exists(configFilePath):
+    print("ERROR - Missing config.py file - Could not find Configuration file %s"
+          % (configFilePath))
+    import urllib2
+    config_url = "https://raw.github.com/pageauc/face-track-demo/master/config.py"
+    print("   Attempting to Download config.py file from %s" % config_url)
+    try:
+        wgetfile = urllib2.urlopen(config_url)
+    except:
+        print("ERROR - Download of config.py Failed")
+        print("        Try Rerunning the face-track-install.sh Again.")
+        print("        or")
+        print("        Perform GitHub curl install per Readme.md")
+        print("        and Try Again")
+        print("Exiting %s" % PROG_NAME)
+        quit()
+    f = open('config.py', 'wb')
+    f.write(wgetfile.read())
+    f.close()
+from config import *
 
-base_option=core.BaseOptions(file_name=model,use_coral=True, num_threads=4)
-detection_options=processor.DetectionOptions(max_results=8, score_threshold=.5)
+cam_pan = INITIAL_PAN
+cam_tilt = INITIAL_TILT
+# Turn the camera to the Start position (the data that pan() and tilt() functions expect to see are any numbers between -90 to 90 degrees).
+pantilthat.pan(INITIAL_PAN-90)
+pantilthat.tilt(INITIAL_TILT-90)
+
+base_option=core.BaseOptions(file_name=MODEL_FILE, use_coral=True, num_threads=4)
+detection_options=processor.DetectionOptions(max_results=MAX_RESULTS, score_threshold=SCORE_THRESHOLD)
 options=vision.ObjectDetectorOptions(base_options=base_option, detection_options=detection_options)
 detector=vision.ObjectDetector.create_from_options(options)
 
@@ -46,7 +69,7 @@ tracker = ocsort.OCSort(det_thresh=0.30, max_age=30, min_hits=2)
 colors = [(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)) for j in range(10)]
 
 # Initialize video stream
-videostream = VideoStream(resolution=(mDispW,mDispH),framerate=30).start()
+videostream = VideoStream(resolution=(DISPLAY_W,DISPLAY_H),framerate=30).start()
 time.sleep(1)
 tic=0
 while True:
@@ -60,7 +83,7 @@ while True:
     frame = frame1.copy()
     frame = cv2.flip(frame,-1)
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    frame_resized = cv2.resize(frame_rgb, (mDispW,mDispH))
+    frame_resized = cv2.resize(frame_rgb, (DISPLAY_W,DISPLAY_H))
     
     imTensor=vision.TensorImage.create_from_array(frame_resized)
     results=detector.detect(imTensor)
@@ -81,12 +104,12 @@ while True:
                 y = y1 + ((y2-y1)/2)
 
                 # Correct relative to centre of image
-                turn_x  = float(x - (mDispW/2))
-                turn_y  = float(y - (mDispH/2))
+                turn_x  = float(x - (DISPLAY_W/2))
+                turn_y  = float(y - (DISPLAY_H/2))
 
                 # Convert to percentage offset
-                turn_x  /= float(mDispW/2)
-                turn_y  /= float(mDispH/2)
+                turn_x  /= float(DISPLAY_W/2)
+                turn_y  /= float(DISPLAY_H/2)
 
                 # Scale offset to degrees (that 2.5 value below acts like the Proportional factor in PID)
                 turn_x   *= 2.5 # VFOV
@@ -99,20 +122,20 @@ while True:
                 cam_tilt = max(0,min(180,cam_tilt))
 
                 # Update the servos
-                pantilthat.tilt(int(cam_pan-90))
-                pantilthat.pan(int(cam_tilt-90))
+                pantilthat.pan(int(cam_pan-90))
+                pantilthat.tilt(int(cam_tilt-90))
                 tic = time.perf_counter()
                 
             toc = time.perf_counter()
             totalTime = toc-tic
             if totalTime > 3:
-                pantilthat.tilt(0)
-                pantilthat.pan(-30)
-                cam_pan = 90
-                cam_tilt = 60
+                pantilthat.pan(INITIAL_PAN-90)
+                pantilthat.tilt(INITIAL_TILT-90)
+                cam_pan = INITIAL_PAN
+                cam_tilt = INITIAL_TILT
                 
                 
-        if mIsTrackEnabled and detections:
+        if IS_TRACK_ENABLED and detections:
             detections = np.array(detections)
             tracker.update(detections, frame)
             for track in tracker.trackers:
