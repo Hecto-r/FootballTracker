@@ -40,6 +40,7 @@ colors = [(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255
 
 # Initialize video stream
 videostream = VideoStream(resolution=(DISPLAY_W,DISPLAY_H),framerate=30).start()
+# Initialize Pan/Tilt controller
 mPanTiltController = PanTiltController().start()
 time.sleep(1)
 tic=0
@@ -75,17 +76,18 @@ while True:
             category_name = result.categories[0].category_name
             score = result.categories[0].score
             if score > .5 and class_id == 0:
-                cv2.rectangle(frame, (x1,y1),(x2,y2), COLOR, PAINT_WEIGHT)
+                mPanTiltController.scan(inBool=False)
+                mPanTiltController.trackObject(x1, y1, x2, y2)
+                
                 detections.append([x1, y1, x2, y2, score, class_id])
                 
                 label = '%s: %d%%' % (category_name, int(score*100)) # Example: 'person: 72%'
                 labelSize, baseLine = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, FONT_SIZE, PAINT_WEIGHT) # Get font size
                 label_ymin = max(y1, labelSize[1] + 10) # Make sure not to draw label too close to top of window
+                cv2.rectangle(frame, (x1,y1),(x2,y2), COLOR, PAINT_WEIGHT) # Bbox
                 cv2.rectangle(frame, (x1, label_ymin-labelSize[1]-10), (x1+labelSize[0], label_ymin+baseLine-10), (255, 255, 255), cv2.FILLED) # Draw white box to put label text in
                 cv2.putText(frame, label, (x1, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, FONT_SIZE, (0, 0, 0), PAINT_WEIGHT) # Draw label text
                 
-                mPanTiltController.scan(inBool=False)
-                mPanTiltController.trackObject(x1, y1, x2, y2)
                 tic = time.perf_counter()
                 
         if IS_TRACK_ENABLED and detections:
