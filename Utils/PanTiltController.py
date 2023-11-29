@@ -26,15 +26,17 @@ class PanTiltController:
                     self.pan = pan_max_left
                 # Update the servos
                 pantilthat.pan(int(self.pan-90))
-            time.sleep(1)
+            time.sleep(.5)
             
 
     def scan(self, inBool):
-	# Indicate that the camera and thread should be stopped
+	# Change mode to scanning the room
         self.scanning = inBool
+        pantilthat.tilt(INITIAL_TILT-90)
+        self.tilt = INITIAL_TILT
         
     def trackObject(self, x1, y1, x2, y2):
-	# Indicate that the camera and thread should be stopped
+	# Change mode to tracking the object
         x = x1 + ((x2-x1)/2)
         y = y1 + ((y2-y1)/2)
 
